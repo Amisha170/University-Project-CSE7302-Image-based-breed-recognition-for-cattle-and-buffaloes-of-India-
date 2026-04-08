@@ -1,165 +1,155 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cattle Breed Recognition 🐄</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="app-container">
-        <header>
-            <h1>Cattle Breed Recognition</h1>
-            <p>Upload a cattle or buffalo image to identify its breed</p>
-        </header>
+# Project code 
 
-        <main>
-            <form id="upload-form" method="POST" enctype="multipart/form-data">
-                <label for="imageInput" class="upload-label">
-                    <input type="file" name="image" id="imageInput" accept="image/*" required>
-                    <span>Select Image</span>
-                </label>
-                <img id="preview" src="#" alt="Image Preview" style="display:none;">
-                <button type="submit" class="predict-btn">Predict Breed</button>
-            </form>
+from google.colab import drive
+drive.mount('/content/drive')
 
-            <div id="results">
-                {% if results %}
-                    <h2>Prediction Results</h2>
-                    {% for model, res in results.items() %}
-                        <div class="result-card">
-                            <h3>{{ model }}</h3>
-                            <p><strong>Breed:</strong> {{ res.breed }}</p>
-                            <p><strong>Confidence:</strong> {{ res.confidence }}%</p>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-        </main>
+import os
+import zipfile
+dataset1_zip = "/content/drive/MyDrive/Indian_bovine_breed.zip"
+dataset2_zip = "/content/drive/MyDrive/Indian cattle breed Image.zip"
+merged_path = "/content/merged_dataset/"
+os.makedirs(merged_path, exist_ok=True)
 
-        <footer>
-            <p>&copy; CattleBreedApp</p>
-        </footer>
-    </div>
+def unzip_dataset(zip_path, extract_to):
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_to)
 
-    <script src="/static/script.js"></script>
-</body>
-</html>
+unzip_dataset(dataset1_zip, merged_path)
+unzip_dataset(dataset2_zip, merged_path)
+
+print("Datasets unzipped and merged at:", merged_path)
 
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Roboto', sans-serif;
-}
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-body {
-    background-color: #f5f5f5;
-}
+IMG_SIZE = 224  
+BATCH_SIZE = 32
 
-/* App container (like Android app) */
-.app-container {
-    max-width: 480px;
-    margin: 20px auto;
-    background-color: #ffffff;
-    border-radius: 15px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    padding: 20px;
-}
+datagen = ImageDataGenerator(
+    rescale=1./255,
+    validation_split=0.2,  # 80-20 split
+    horizontal_flip=True,
+    rotation_range=20,
+    zoom_range=0.15,
+    width_shift_range=0.2,
+    height_shift_range=0.2
+)
 
-/* Header */
-header h1 {
-    color: #2c3e50;
-    font-size: 20px;
-    text-align: center;
-    margin-bottom: 5px;
-}
+# Training Data
+train_data = datagen.flow_from_directory(
+    merged_path,
+    target_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE,
+    subset='training',
+    class_mode='categorical'
+)
 
-header p {
-    text-align: center;
-    color: #555;
-    margin-bottom: 20px;
-}
+# Validation Data
+val_data = datagen.flow_from_directory(
+    merged_path,
+    target_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE,
+    subset='validation',
+    class_mode='categorical'
+)
 
-/* Image upload */
-.upload-label {
-    display: block;
-    background-color: #27ae60;
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    cursor: pointer;
-    margin-bottom: 10px;
-}
+# Add custom classification
+x = base_model.output
+x = GlobalAveragePooling2D()(x)
+x = Dropout(0.3)(x)
+num_classes = len(train_data.class_indices) 
+output = Dense(num_classes, activation='softmax')(x)
 
-.upload-label input {
-    display: none;
-}
+# Train 6 Models
 
-#preview {
-    width: 100%;
-    max-height: 300px;
-    margin: 10px 0;
-    border-radius: 10px;
-    object-fit: cover;
-}
+# MobileNetV3Large model
+base_model = MobileNetV3Large(weights='imagenet', include_top=False, input_shape=(IMG_SIZE, IMG_SIZE, 3))
 
-/* Predict button */
-.predict-btn {
-    width: 100%;
-    padding: 12px;
-    background-color: #2980b9;
-    color: white;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.3s;
-}
+# MobileNetV2 model 
+base_model = MobileNetV2(input_shape=(IMG_SIZE, IMG_SIZE, 3),
+                         include_top=False,
+                         weights='imagenet')
 
-.predict-btn:hover {
-    background-color: #1f6391;
-}
+# EfficientNetB3 model
+base_model = EfficientNetB3(
+    weights="imagenet",
+    include_top=False,
+    input_shape=(IMG_SIZE, IMG_SIZE, 3)
+)
 
-/* Result cards */
-.result-card {
-    background-color: #ecf0f1;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 10px 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-}
+# DenseNet121 model
+base_model = DenseNet121(
+    weights='imagenet',
+    include_top=False,
+    input_shape=(IMG_SIZE, IMG_SIZE, 3)
+)
 
-.result-card h3 {
-    color: #2c3e50;
-    margin-bottom: 5px;
-}
+# EfficientNetV2S model
+base_model = EfficientNetV2S(
+    input_shape=(IMG_SIZE, IMG_SIZE, 3),
+    include_top=False,
+    weights='imagenet'
+)
+base_model.trainable = False
 
-/* Footer */
-footer {
-    text-align: center;
-    color: #999;
-    margin-top: 20px;
-    font-size: 12px;
-}
+# ConvNext Model
+base_model = Convnext(input_shape=(IMG_SIZE, IMG_SIZE, 3),
+                         include_top=False,
+                         weights='imagenet')
+
+# Training 20 Epochs 
+EPOCHS = 20
+
+history = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=EPOCHS
+)
+
+# Accuracy Score for all models 
+accuracy = accuracy_score(true_classes, predicted_classes)
+
+print("Accuracy Score:", accuracy)
+print("Accuracy Percentage:", accuracy * 100, "%")
+
+# Calculate Precision, Recall, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+precision = precision_score(y_true, y_pred, average='weighted')
+recall = recall_score(y_true, y_pred, average='weighted')
+f1 = f1_score(y_true, y_pred, average='weighted')
+
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1 Score:", f1)
+
+# Confusion Matrix
+cm = confusion_matrix(y_true, y_pred)
+plt.figure(figsize=(10,8))
+sns.heatmap(cm, annot=True, fmt='d', xticklabels=class_labels, yticklabels=class_labels, cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix')
+
+# Save the confusion matrix as an image
+plt.savefig("/content/confusion_matrix.png")
+plt.show()
+
+print("Confusion matrix saved as /content/confusion_matrix.png")
+
+# Save the TFLite model
+tflite_model_path = "/content/mobilenetv3_large_cattle_breed.tflite"
+tflite_model_path = "/content/mobilenetv2_cattle_breed_model.tflite"
+tflite_model_path = "/content/EfficientNetB3_cattle_breed_model.tflite"
+tflite_model_path = "/content/Efficient_cattle_breed_model.tflite"
+tflite_model_path = "/content/DenseNet121_cattle_breed_model.tflite"
+tflite_model_path = "/content/ConvNext_cattle_breed_model.tflite"
+with open(tflite_model_path, "wb") as f:
+    f.write(tflite_model)
+
+print("TFLite model saved at:", tflite_model_path)
 
 
-// Live image preview before upload
-const imageInput = document.getElementById('imageInput');
-const preview = document.getElementById('preview');
 
-imageInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
-    } else {
-        preview.style.display = 'none';
-    }
-});
+
