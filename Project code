@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cattle Breed Recognition 🐄</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>Cattle Breed Recognition</h1>
+            <p>Upload a cattle or buffalo image to identify its breed</p>
+        </header>
+
+        <main>
+            <form id="upload-form" method="POST" enctype="multipart/form-data">
+                <label for="imageInput" class="upload-label">
+                    <input type="file" name="image" id="imageInput" accept="image/*" required>
+                    <span>Select Image</span>
+                </label>
+                <img id="preview" src="#" alt="Image Preview" style="display:none;">
+                <button type="submit" class="predict-btn">Predict Breed</button>
+            </form>
+
+            <div id="results">
+                {% if results %}
+                    <h2>Prediction Results</h2>
+                    {% for model, res in results.items() %}
+                        <div class="result-card">
+                            <h3>{{ model }}</h3>
+                            <p><strong>Breed:</strong> {{ res.breed }}</p>
+                            <p><strong>Confidence:</strong> {{ res.confidence }}%</p>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; CattleBreedApp</p>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: #f5f5f5;
+}
+
+/* App container (like Android app) */
+.app-container {
+    max-width: 480px;
+    margin: 20px auto;
+    background-color: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+
+/* Header */
+header h1 {
+    color: #2c3e50;
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+header p {
+    text-align: center;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+/* Image upload */
+.upload-label {
+    display: block;
+    background-color: #27ae60;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.upload-label input {
+    display: none;
+}
+
+#preview {
+    width: 100%;
+    max-height: 300px;
+    margin: 10px 0;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+/* Predict button */
+.predict-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #2980b9;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.predict-btn:hover {
+    background-color: #1f6391;
+}
+
+/* Result cards */
+.result-card {
+    background-color: #ecf0f1;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.result-card h3 {
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    color: #999;
+    margin-top: 20px;
+    font-size: 12px;
+}
+
+
+// Live image preview before upload
+const imageInput = document.getElementById('imageInput');
+const preview = document.getElementById('preview');
+
+imageInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+    }
+});
